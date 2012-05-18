@@ -40,4 +40,6 @@ void s3c24xx_disable_second_sdram_bank(void);
 
 #ifdef CONFIG_ARCH_S5PCxx
 void s5p_init_pll(void);
+void s5p_init_dram_bank(uint32_t base, uint32_t mc0, uint32_t mc1);
+uint32_t s5p_get_memory_size(void);
 #endif
