@@ -36,6 +36,7 @@
 #define S5P_DMC_TIMINGDATA	0x38
 #define S5P_DMC_TIMINGPOWER	0x3C
 #define S5P_DMC_PHYSTATUS	0x40
+#define S5P_DMC_MRSTATUS	0x54
 
 /* DRAM commands */
 #define CMD(x)  ((x) << 24)
@@ -103,17 +104,39 @@
  */
 #define dcmd(x) writel((x) | CHIP(chip), base + S5P_DMC_DIRECTCMD)
 
-/* TODO: LPDDR and LPDDR2 */
+static void __bare_init s5p_dram_init_seq_lpddr(phys_addr_t base, unsigned chip)
+{
+	const uint32_t emr = 0x400; /* DQS disable */
+	const uint32_t mr = (((S5P_DRAM_WR) - 1) << 9)
+			  | ((S5P_DRAM_CAS) << 4)
+			  | (S5P_DRAM_BURST);
+	/* FIXME this sequence is untested */
+	dcmd(PALL); dcmd(REFA); dcmd(REFA);
+	dcmd(MRS   | ADDR(mr));
+	dcmd(EMRS1 | ADDR(emr));
+}
 
-#ifdef S5P_DRAM_DDR2
-static void __bare_init init_seq(uint32_t base, unsigned chip)
+static void __bare_init s5p_dram_init_seq_lpddr2(phys_addr_t base, unsigned chip)
+{
+	const uint32_t mr = (((S5P_DRAM_WR) - 1) << 9)
+			  | ((S5P_DRAM_CAS) << 4)
+			  | (S5P_DRAM_BURST);
+	/* FIXME this sequence is untested */
+	dcmd(NOP);
+	dcmd(MRS | ADDR(mr));
+	do {
+		dcmd(MRR);
+	} while (readl(base + S5P_DMC_MRSTATUS) & 0x01); /* poll DAI */
+}
+
+static void __bare_init s5p_dram_init_seq_ddr2(phys_addr_t base, unsigned chip)
 {
 	const uint32_t emr = 0x400; /* DQS disable */
 	const uint32_t mr = (((S5P_DRAM_WR) - 1) << 9)
 			  | ((S5P_DRAM_CAS) << 4)
 			  | (S5P_DRAM_BURST);
 	dcmd(NOP);
-	/* FIXME wait here? */
+	/* FIXME wait here? JEDEC recommends but nobody does */
 	dcmd(PALL); dcmd(EMRS2); dcmd(EMRS3);
 	dcmd(EMRS1 | ADDR(emr));         /* DQS disable */
 	dcmd(MRS   | ADDR(mr | 0x100));  /* DLL reset */
@@ -122,27 +145,23 @@ static void __bare_init init_seq(uint32_t base, unsigned chip)
 	dcmd(EMRS1 | ADDR(emr | 0x380)); /* OCD defaults */
 	dcmd(EMRS1 | ADDR(emr));         /* OCD exit */
 }
-#endif
 
 #undef dcmd
 
-
-static inline void __bare_init start_dll(uint32_t base)
+static inline void __bare_init s5p_dram_start_dll(phys_addr_t base, uint32_t phycon1)
 {
 	uint32_t pc0 = 0x00101000; /* the only legal initial value */
 	uint32_t lv;
+
 	/* Init DLL */
 	writel(pc0, base + S5P_DMC_PHYCONTROL0);
-#ifdef S5P_DRAM_DDR2
-	/* refcount 8, 180 deg. shift */
-	writel(0x00000086, base + S5P_DMC_PHYCONTROL1);
-#else
-	/* refcount 8, 90 deg. shift */
+	writel(phycon1, base + S5P_DMC_PHYCONTROL1);
 	writel(0x00000085, base + S5P_DMC_PHYCONTROL1);
-#endif
+
 	/* DLL on */
 	pc0 |= 0x2;
 	writel(pc0, base + S5P_DMC_PHYCONTROL0);
+
 	/* DLL start */
 	pc0 |= 0x1;
 	writel(pc0, base + S5P_DMC_PHYCONTROL0);
@@ -158,52 +177,92 @@ static inline void __bare_init start_dll(uint32_t base)
 	writel(pc0, base + S5P_DMC_PHYCONTROL0); /* force value locking */
 }
 
-
-
-void __bare_init s5p_init_dram_bank(uint32_t base, uint32_t mc0, uint32_t mc1)
+static inline void __bare_init s5p_dram_setup(phys_addr_t base, uint32_t mc0, uint32_t mc1,
+				       int bus16, uint32_t mcon)
 {
-#ifdef S5P_DRAM_LPDDR
-	uint32_t reg = 0x100;
-#endif
-#ifdef S5P_DRAM_LPDDR2
-	uint32_t reg = 0x200;
-#endif
-#ifdef S5P_DRAM_DDR2
-	uint32_t reg = 0x400;
-#endif
-	reg |= (S5P_DRAM_BURST) << 20;
-#ifdef S5P_DRAM_16BIT
-	reg |= 0x1000;
-#else /* 32-bit */
-	reg |= 0x2000;
-#endif
+	mcon |= (S5P_DRAM_BURST) << 20;
+	/* 16 or 32-bit bus ? */
+	mcon |= bus16 ? 0x1000 : 0x2000;
 	if (mc1)
-		reg |= 0x10000; /* two chips */
+		mcon |= 0x10000; /* two chips */
 
-	start_dll(base);
-	writel(reg, base + S5P_DMC_MEMCONTROL);
+	writel(mcon, base + S5P_DMC_MEMCONTROL);
 
 	/* Set up memory layout */
 	writel(mc0, base + S5P_DMC_MEMCONFIG0);
 	if (mc1)
 		writel(mc1, base + S5P_DMC_MEMCONFIG1);
+
 	/* Open page precharge policy - reasonable defaults */
 	writel(0xFF000000, base + S5P_DMC_PRECHCONFIG);
+
 	/* Set up timings */
 	writel(DMC_TIMING_AREF, base + S5P_DMC_TIMINGAREF);
 	writel(DMC_TIMING_ROW,  base + S5P_DMC_TIMINGROW);
 	writel(DMC_TIMING_DATA, base + S5P_DMC_TIMINGDATA);
 	writel(DMC_TIMING_PWR,  base + S5P_DMC_TIMINGPOWER);
+}
 
-	/* Start-Up Commands */
-	init_seq(base, 0);
-	if (mc1)
-		init_seq(base, 1);
-
+static inline void __bare_init s5p_dram_start(phys_addr_t base)
+{
 	/* Reasonable defaults and auto-refresh on */
 	writel(0x0FFF1070, base + S5P_DMC_CONCONTROL);
 	/* Reasonable defaults */
 	writel(0xFFFF00FF, base + S5P_DMC_PWRDNCONFIG);
+}
+
+/*
+ * Initialize LPDDR memory bank
+ */
+void __bare_init s5p_init_dram_bank_lpddr(phys_addr_t base, uint32_t mc0, uint32_t mc1, int bus16)
+{
+	/* refcount 8, 90 deg. shift */
+	s5p_dram_start_dll(base, 0x00000085);
+	/* LPDDR type */
+	s5p_dram_setup(base, mc0, mc1, bus16, 0x100);
+
+	/* Start-Up Commands */
+	s5p_dram_init_seq_lpddr(base, 0);
+	if (mc1)
+		s5p_dram_init_seq_lpddr(base, 1);
+
+	s5p_dram_start(base);
+}
+
+/*
+ * Initialize LPDDR2 memory bank
+ */
+void __bare_init s5p_init_dram_bank_lpddr2(phys_addr_t base, uint32_t mc0, uint32_t mc1, int bus16)
+{
+	/* refcount 8, 90 deg. shift */
+	s5p_dram_start_dll(base, 0x00000085);
+	/* LPDDR2 type */
+	s5p_dram_setup(base, mc0, mc1, bus16, 0x200);
+
+	/* Start-Up Commands */
+	s5p_dram_init_seq_lpddr2(base, 0);
+	if (mc1)
+		s5p_dram_init_seq_lpddr2(base, 1);
+
+	s5p_dram_start(base);
+}
+
+/*
+ * Initialize DDR2 memory bank
+ */
+void __bare_init s5p_init_dram_bank_ddr2(phys_addr_t base, uint32_t mc0, uint32_t mc1, int bus16)
+{
+	/* refcount 8, 180 deg. shift */
+	s5p_dram_start_dll(base, 0x00000086);
+	/* DDR2 type */
+	s5p_dram_setup(base, mc0, mc1, bus16, 0x400);
+
+	/* Start-Up Commands */
+	s5p_dram_init_seq_ddr2(base, 0);
+	if (mc1)
+		s5p_dram_init_seq_ddr2(base, 1);
+
+	s5p_dram_start(base);
 }
 
 
