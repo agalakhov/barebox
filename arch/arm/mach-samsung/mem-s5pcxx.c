@@ -110,7 +110,7 @@ static void __bare_init s5p_dram_init_seq_lpddr(phys_addr_t base, unsigned chip)
 	const uint32_t mr = (((S5P_DRAM_WR) - 1) << 9)
 			  | ((S5P_DRAM_CAS) << 4)
 			  | (S5P_DRAM_BURST);
-	/* FIXME this sequence is untested */
+	/* TODO this sequence is untested */
 	dcmd(PALL); dcmd(REFA); dcmd(REFA);
 	dcmd(MRS   | ADDR(mr));
 	dcmd(EMRS1 | ADDR(emr));
@@ -121,7 +121,7 @@ static void __bare_init s5p_dram_init_seq_lpddr2(phys_addr_t base, unsigned chip
 	const uint32_t mr = (((S5P_DRAM_WR) - 1) << 9)
 			  | ((S5P_DRAM_CAS) << 4)
 			  | (S5P_DRAM_BURST);
-	/* FIXME this sequence is untested */
+	/* TODO this sequence is untested */
 	dcmd(NOP);
 	dcmd(MRS | ADDR(mr));
 	do {
@@ -156,7 +156,6 @@ static inline void __bare_init s5p_dram_start_dll(phys_addr_t base, uint32_t phy
 	/* Init DLL */
 	writel(pc0, base + S5P_DMC_PHYCONTROL0);
 	writel(phycon1, base + S5P_DMC_PHYCONTROL1);
-	writel(0x00000085, base + S5P_DMC_PHYCONTROL1);
 
 	/* DLL on */
 	pc0 |= 0x2;
@@ -213,6 +212,7 @@ static inline void __bare_init s5p_dram_start(phys_addr_t base)
 
 /*
  * Initialize LPDDR memory bank
+ * TODO: this function is untested, see also init_seq function
  */
 void __bare_init s5p_init_dram_bank_lpddr(phys_addr_t base, uint32_t mc0, uint32_t mc1, int bus16)
 {
@@ -231,6 +231,7 @@ void __bare_init s5p_init_dram_bank_lpddr(phys_addr_t base, uint32_t mc0, uint32
 
 /*
  * Initialize LPDDR2 memory bank
+ * TODO: this function is untested, see also init_seq function
  */
 void __bare_init s5p_init_dram_bank_lpddr2(phys_addr_t base, uint32_t mc0, uint32_t mc1, int bus16)
 {
