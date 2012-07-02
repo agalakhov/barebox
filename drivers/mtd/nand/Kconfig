@@ -77,6 +77,14 @@ config NAND_S3C24XX
 	help
 	  Add support for processor's NAND device controller.
 
+config NAND_SAMSUNG
+	bool
+	prompt "Samsung S3C/S5P NAND driver"
+	depends on ARCH_S5PCxx
+	help
+	  Add support for NAND device controller present on
+	  Samsung recent chips.
+
 config MTD_NAND_VERIFY_WRITE
 	bool "Verify NAND page writes"
 	help
