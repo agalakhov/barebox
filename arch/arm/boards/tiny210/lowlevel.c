@@ -37,13 +37,11 @@
 #define ADDR_V210_SDMMC_BASE	0xD0037488
 #define ADDR_CopySDMMCtoMem	0xD0037F98
 
-#define RR(x) (*(volatile uint32_t*)(x))
-
 int __bare_init s5p_irom_load_mmc(void *dest, uint32_t start_block, uint16_t block_count)
 {
 	typedef uint32_t (*func_t) (int32_t, uint32_t, uint16_t, uint32_t*, int8_t);
-	uint32_t chbase = RR(ADDR_V210_SDMMC_BASE);
-	func_t func = (func_t)RR(ADDR_CopySDMMCtoMem);
+	uint32_t chbase = readl(ADDR_V210_SDMMC_BASE);
+	func_t func = (func_t)readl(ADDR_CopySDMMCtoMem);
 	int chan = (chbase - 0xEB000000) >> 20;
 	if (chan != 0 && chan != 2)
 		return 0;
@@ -62,9 +60,7 @@ void __bare_init board_init_lowlevel(void)
 	if (get_pc() < 0xD0000000) /* Are we running from iRAM? */
 		return; /* No, we don't. */
 
-#ifdef CONFIG_S3C_SDRAM_INIT
 	s5p_init_dram_bank_ddr2(S5P_DMC0_BASE, 0x20E00323, 0, 0);
-#endif
 
 	if (! s5p_irom_load_mmc((void*)TEXT_BASE - 16, 1, (barebox_image_size + 16 + 511) / 512))
 		while (1) { } /* hang */
