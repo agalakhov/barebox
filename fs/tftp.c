@@ -336,6 +336,7 @@ static void tftp_handler(void *ctx, char *packet, unsigned len)
 
 		if (len < priv->blocksize) {
 			tftp_send(priv);
+			priv->err = 0;
 			priv->state = STATE_DONE;
 		}
 
@@ -423,7 +424,7 @@ static struct file_priv *tftp_do_open(struct device_d *dev,
 			goto out2;
 	}
 
-	if (priv->state == STATE_DONE) {
+	if (priv->state == STATE_DONE && priv->err) {
 		ret = priv->err;
 		goto out2;
 	}
@@ -568,7 +569,7 @@ static int tftp_read(struct device_d *dev, FILE *f, void *buf, size_t insize)
 	return outsize;
 }
 
-static off_t tftp_lseek(struct device_d *dev, FILE *f, off_t pos)
+static loff_t tftp_lseek(struct device_d *dev, FILE *f, loff_t pos)
 {
 	/* not implemented in tftp protocol */
 	return -ENOSYS;

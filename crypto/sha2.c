@@ -274,7 +274,8 @@ static void sha2_finish(sha2_context * ctx, uint8_t digest[32])
 	PUT_UINT32_BE(ctx->state[4], digest, 16);
 	PUT_UINT32_BE(ctx->state[5], digest, 20);
 	PUT_UINT32_BE(ctx->state[6], digest, 24);
-	PUT_UINT32_BE(ctx->state[7], digest, 28);
+	if (!ctx->is224)
+		PUT_UINT32_BE(ctx->state[7], digest, 28);
 }
 
 struct sha2 {
@@ -313,6 +314,7 @@ static int digest_sha224_init(struct digest *d)
 
 static struct sha2 m224 = {
 	.d = {
+		.name = "sha224",
 		.init = digest_sha224_init,
 		.update = digest_sha2_update,
 		.final = digest_sha2_final,

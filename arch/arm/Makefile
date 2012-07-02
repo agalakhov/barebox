@@ -61,6 +61,7 @@ machine-$(CONFIG_ARCH_OMAP)		:= omap
 machine-$(CONFIG_ARCH_PXA)		:= pxa
 machine-$(CONFIG_ARCH_SAMSUNG)		:= samsung
 machine-$(CONFIG_ARCH_VERSATILE)	:= versatile
+machine-$(CONFIG_ARCH_TEGRA)		:= tegra
 
 # Board directory name.  This list is sorted alphanumerically
 # by CONFIG_* macro name.
@@ -122,6 +123,7 @@ board-$(CONFIG_MACH_FREESCALE_MX53_LOCO)	:= freescale-mx53-loco
 board-$(CONFIG_MACH_FREESCALE_MX53_SMD)		:= freescale-mx53-smd
 board-$(CONFIG_MACH_GUF_CUPID)			:= guf-cupid
 board-$(CONFIG_MACH_MINI2440)			:= mini2440
+board-$(CONFIG_MACH_QIL_A9260)			:= qil-a9260
 board-$(CONFIG_MACH_TNY_A9260)			:= tny-a926x
 board-$(CONFIG_MACH_TNY_A9263)			:= tny-a926x
 board-$(CONFIG_MACH_TNY_A9G20)			:= tny-a926x
@@ -133,6 +135,8 @@ board-$(CONFIG_MACH_TX25)			:= karo-tx25
 board-$(CONFIG_MACH_TQMA53)			:= tqma53
 board-$(CONFIG_MACH_TX51)			:= karo-tx51
 board-$(CONFIG_MACH_MX6Q_ARM2)			:= freescale-mx6-arm2
+board-$(CONFIG_MACH_TOSHIBA_AC100)		:= toshiba-ac100
+board-$(CONFIG_MACH_CCMX51)			:= ccxmx51
 board-$(CONFIG_MACH_TINY210)			:= tiny210
 
 machdirs := $(patsubst %,arch/arm/mach-%/,$(machine-y))

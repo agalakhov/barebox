@@ -198,7 +198,7 @@ int empty_complete(struct string_list *sl, char *instr)
 	return COMPLETE_END;
 }
 
-int cammand_var_complete(struct string_list *sl, char *instr)
+int command_var_complete(struct string_list *sl, char *instr)
 {
 	return COMPLETE_CONTINUE;
 }
@@ -221,7 +221,7 @@ static int env_param_complete(struct string_list *sl, char *instr, int eval)
 		end = ' ';
 	}
 
-	instr_param = strrchr(instr, '.');
+	instr_param = strchr(instr, '.');
 	len = strlen(instr);
 
 	current_c = get_current_context();

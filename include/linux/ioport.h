@@ -17,13 +17,19 @@
  */
 struct resource {
 	resource_size_t start;
-	resource_size_t size;
+	resource_size_t end;
 	const char *name;
 	unsigned long flags;
 	struct resource *parent;
 	struct list_head children;
 	struct list_head sibling;
 };
+
+#ifdef CONFIG_PHYS_ADDR_T_64BIT
+#define PRINTF_CONVERSION_RESOURCE	"0x%016llx"
+#else
+#define PRINTF_CONVERSION_RESOURCE	"0x%08x"
+#endif
 
 /*
  * IO resources have these defined flags.
@@ -107,7 +113,7 @@ struct resource {
 
 static inline resource_size_t resource_size(const struct resource *res)
 {
-	return res->size;
+	return res->end - res->start + 1;
 }
 static inline unsigned long resource_type(const struct resource *res)
 {
@@ -115,10 +121,10 @@ static inline unsigned long resource_type(const struct resource *res)
 }
 
 struct resource *request_iomem_region(const char *name,
-		resource_size_t start, resource_size_t size);
+		resource_size_t start, resource_size_t end);
 
 struct resource *request_region(struct resource *parent,
-		const char *name, resource_size_t start,
+		const char *name, resource_size_t end,
 		resource_size_t size);
 
 int release_region(struct resource *res);

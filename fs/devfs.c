@@ -49,13 +49,16 @@ static int devfs_write(struct device_d *_dev, FILE *f, const void *buf, size_t s
 {
 	struct cdev *cdev = f->inode;
 
+	if (cdev->flags & DEVFS_PARTITION_READONLY)
+		return -EPERM;
+
 	return cdev_write(cdev, buf, size, f->pos, f->flags);
 }
 
-static off_t devfs_lseek(struct device_d *_dev, FILE *f, off_t pos)
+static loff_t devfs_lseek(struct device_d *_dev, FILE *f, loff_t pos)
 {
 	struct cdev *cdev = f->inode;
-	off_t ret = -1;
+	loff_t ret = -1;
 
 	if (cdev->ops->lseek)
 		ret = cdev->ops->lseek(cdev, pos + cdev->offset);
@@ -66,17 +69,23 @@ static off_t devfs_lseek(struct device_d *_dev, FILE *f, off_t pos)
 	return ret - cdev->offset;
 }
 
-static int devfs_erase(struct device_d *_dev, FILE *f, size_t count, unsigned long offset)
+static int devfs_erase(struct device_d *_dev, FILE *f, size_t count, loff_t offset)
 {
 	struct cdev *cdev = f->inode;
+
+	if (cdev->flags & DEVFS_PARTITION_READONLY)
+		return -EPERM;
 
 	if (!cdev->ops->erase)
 		return -ENOSYS;
 
+	if (count + offset > cdev->size)
+		count = cdev->size - offset;
+
 	return cdev->ops->erase(cdev, count, offset + cdev->offset);
 }
 
-static int devfs_protect(struct device_d *_dev, FILE *f, size_t count, unsigned long offset, int prot)
+static int devfs_protect(struct device_d *_dev, FILE *f, size_t count, loff_t offset, int prot)
 {
 	struct cdev *cdev = f->inode;
 
@@ -97,7 +106,7 @@ static int devfs_memmap(struct device_d *_dev, FILE *f, void **map, int flags)
 	ret = cdev->ops->memmap(cdev, map, flags);
 
 	if (!ret)
-		*map = (void *)((unsigned long)*map + cdev->offset);
+		*map = (void *)((unsigned long)*map + (unsigned long)cdev->offset);
 
 	return ret;
 }
@@ -163,7 +172,7 @@ static int devfs_truncate(struct device_d *dev, FILE *f, ulong size)
 {
 	if (f->dev->num_resources < 1)
 		return -ENOSPC;
-	if (size > f->dev->resource[0].size)
+	if (size > resource_size(&f->dev->resource[0]))
 		return -ENOSPC;
 	return 0;
 }

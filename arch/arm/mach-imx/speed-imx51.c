@@ -1,12 +1,19 @@
 #include <common.h>
 #include <io.h>
 #include <asm-generic/div64.h>
+#include <asm-generic/errno.h>
 #include <mach/imx51-regs.h>
+#include <mach/clock.h>
 #include <mach/clock-imx51_53.h>
 
 static u32 ccm_readl(u32 ofs)
 {
-	return readl(MX51_CCM_BASE_ADDR + ofs);
+	return readl(IOMEM(MX51_CCM_BASE_ADDR) + ofs);
+}
+
+static void ccm_writel(u32 val, u32 ofs)
+{
+	writel(val, MX51_CCM_BASE_ADDR + ofs);
 }
 
 static unsigned long ckil_get_rate(void)
@@ -22,6 +29,14 @@ static unsigned long osc_get_rate(void)
 static unsigned long fpm_get_rate(void)
 {
 	return ckil_get_rate() * 512;
+}
+
+static unsigned long lp_apm_get_rate(void)
+{
+	if (ccm_readl(MX5_CCM_CCSR) & MX5_CCM_CCSR_LP_APM_SEL)
+		return fpm_get_rate();
+	else
+		return osc_get_rate();
 }
 
 static unsigned long pll_get_rate(void __iomem *pllbase)
@@ -98,9 +113,9 @@ static unsigned long get_rate_select(int select,
 {
 	switch (select) {
 	case 0:
-		return get_rate1() ? get_rate1() : 0;
+		return get_rate1 ? get_rate1() : 0;
 	case 1:
-		return get_rate2() ? get_rate2() : 0;
+		return get_rate2 ? get_rate2() : 0;
 	case 2:
 		return get_rate3 ? get_rate3() : 0;
 	case 3:
@@ -123,7 +138,7 @@ unsigned long imx_get_uartclk(void)
 			pll1_main_get_rate,
 			pll2_sw_get_rate,
 			pll3_sw_get_rate,
-			NULL);
+			lp_apm_get_rate);
 
 	reg = ccm_readl(MX5_CCM_CSCDR1);
 	prediv = ((reg & MX5_CCM_CSCDR1_UART_CLK_PRED_MASK) >>
@@ -134,7 +149,7 @@ unsigned long imx_get_uartclk(void)
 	return parent_rate / (prediv * podf);
 }
 
-static unsigned long imx_get_ahbclk(void)
+unsigned long imx_get_ahbclk(void)
 {
 	u32 reg, div;
 
@@ -180,7 +195,7 @@ unsigned long imx_get_mmcclk(void)
 			pll1_main_get_rate,
 			pll2_sw_get_rate,
 			pll3_sw_get_rate,
-			NULL);
+			lp_apm_get_rate);
 
 	reg = ccm_readl(MX5_CCM_CSCDR1);
 	prediv = ((reg & MX5_CCM_CSCDR1_ESDHC1_MSHC1_CLK_PRED_MASK) >>
@@ -191,13 +206,101 @@ unsigned long imx_get_mmcclk(void)
 	return rate / (prediv * podf);
 }
 
+unsigned long imx_get_usbclk(void)
+{
+	u32 reg, prediv, podf, rate;
+
+	reg = ccm_readl(MX5_CCM_CSCMR1);
+	reg &= MX5_CCM_CSCMR1_USBOH3_CLK_SEL_MASK;
+	reg >>= MX5_CCM_CSCMR1_USBOH3_CLK_SEL_OFFSET;
+	rate = get_rate_select(reg,
+			pll1_main_get_rate,
+			pll2_sw_get_rate,
+			pll3_sw_get_rate,
+			lp_apm_get_rate);
+
+	reg = ccm_readl(MX5_CCM_CSCDR1);
+	prediv = ((reg & MX5_CCM_CSCDR1_USBOH3_CLK_PRED_MASK) >>
+			MX5_CCM_CSCDR1_USBOH3_CLK_PRED_OFFSET) + 1;
+	podf = ((reg & MX5_CCM_CSCDR1_USBOH3_CLK_PODF_MASK) >>
+			MX5_CCM_CSCDR1_USBOH3_CLK_PODF_OFFSET) + 1;
+
+	return rate / (prediv * podf);
+}
+
+/*
+ * Set the divider of the CLKO pin. Returns
+ * the new divider (which may be smaller
+ * than the desired one)
+ */
+int imx_clko_set_div(int num, int div)
+{
+	u32 ccosr = ccm_readl(MX5_CCM_CCOSR);
+
+	div--;
+
+	switch (num) {
+	case 1:
+		div &= 0x7;
+		ccosr &= ~(0x7 << 4);
+		ccosr |= div << 4;
+		ccm_writel(ccosr, MX5_CCM_CCOSR);
+		break;
+	case 2:
+		div &= 0x7;
+		ccosr &= ~(0x7 << 21);
+		ccosr |= div << 21;
+		ccm_writel(ccosr, MX5_CCM_CCOSR);
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	return div + 1;
+}
+
+/*
+ * Set the clock source for the CLKO pin
+ */
+void imx_clko_set_src(int num, int src)
+{
+	u32 ccosr = ccm_readl(MX5_CCM_CCOSR);
+
+	switch (num) {
+	case 1:
+		if (src < 0) {
+			ccosr &= ~(1 << 7);
+			break;
+		}
+		ccosr &= ~0xf;
+		ccosr |= src & 0xf;
+		ccosr |= 1 << 7;
+		break;
+	case 2:
+		if (src < 0) {
+			ccosr &= ~(1 << 24);
+			break;
+		}
+		ccosr &= ~(0x1f << 16);
+		ccosr |= (src & 0x1f) << 16;
+		ccosr |= 1 << 24;
+		break;
+	default:
+		return;
+	}
+
+	ccm_writel(ccosr, MX5_CCM_CCOSR);
+}
+
 void imx_dump_clocks(void)
 {
-	printf("pll1: %ld\n", pll1_main_get_rate());
-	printf("pll2: %ld\n", pll2_sw_get_rate());
-	printf("pll3: %ld\n", pll3_sw_get_rate());
-	printf("uart: %ld\n", imx_get_uartclk());
-	printf("ipg:  %ld\n", imx_get_ipgclk());
-	printf("fec:  %ld\n", imx_get_fecclk());
-	printf("gpt:  %ld\n", imx_get_gptclk());
+	printf("pll1:   %ld\n", pll1_main_get_rate());
+	printf("pll2:   %ld\n", pll2_sw_get_rate());
+	printf("pll3:   %ld\n", pll3_sw_get_rate());
+	printf("lp_apm: %ld\n", lp_apm_get_rate());
+	printf("uart:   %ld\n", imx_get_uartclk());
+	printf("ipg:    %ld\n", imx_get_ipgclk());
+	printf("fec:    %ld\n", imx_get_fecclk());
+	printf("gpt:    %ld\n", imx_get_gptclk());
+	printf("usb:    %ld\n", imx_get_usbclk());
 }

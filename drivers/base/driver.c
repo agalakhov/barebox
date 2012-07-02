@@ -241,15 +241,15 @@ static struct resource *dev_get_resource(struct device_d *dev, int num)
 	return NULL;
 }
 
-void __iomem *dev_get_mem_region(struct device_d *dev, int num)
+void *dev_get_mem_region(struct device_d *dev, int num)
 {
 	struct resource *res;
 
 	res = dev_get_resource(dev, num);
 	if (!res)
-		return res;
+		return NULL;
 
-	return (void __force __iomem *)res->start;
+	return (void __force *)res->start;
 }
 EXPORT_SYMBOL(dev_get_mem_region);
 
@@ -261,7 +261,9 @@ void __iomem *dev_request_mem_region(struct device_d *dev, int num)
 	if (!res)
 		return NULL;
 
-	res = request_iomem_region(dev_name(dev), res->start, res->size);
+	res = request_iomem_region(dev_name(dev), res->start, res->end);
+	if (!res)
+		return NULL;
 
 	return (void __force __iomem *)res->start;
 }
@@ -337,7 +339,7 @@ static int do_devinfo_subtree(struct device_d *dev, int depth)
 		list_for_each_entry(cdev, &dev->cdevs, devices_list) {
 			for (i = 0; i < depth + 1; i++)
 				printf("     ");
-			printf("`---- 0x%08lx-0x%08lx: /dev/%s\n",
+			printf("`---- 0x%08llx-0x%08llx: /dev/%s\n",
 					cdev->offset,
 					cdev->offset + cdev->size - 1,
 					cdev->name);
@@ -388,8 +390,9 @@ static int do_devinfo(int argc, char *argv[])
 			printf("num   : %d\n", i);
 			if (res->name)
 				printf("name  : %s\n", res->name);
-			printf("start : 0x%08x\nsize  : 0x%08x\n",
-			       res->start, res->size);
+			printf("start : " PRINTF_CONVERSION_RESOURCE "\nsize  : "
+					PRINTF_CONVERSION_RESOURCE "\n",
+			       res->start, resource_size(res));
 		}
 
 		printf("driver: %s\n\n", dev->driver ?

@@ -2,6 +2,7 @@
 #include <io.h>
 #include <asm-generic/div64.h>
 #include <mach/imx-regs.h>
+#include <mach/clock.h>
 #include "mach/clock-imx51_53.h"
 
 static u32 ccm_readl(u32 ofs)
@@ -103,9 +104,9 @@ static unsigned long get_rate_select(int select,
 {
 	switch (select) {
 	case 0:
-		return get_rate1() ? get_rate1() : 0;
+		return get_rate1 ? get_rate1() : 0;
 	case 1:
-		return get_rate2() ? get_rate2() : 0;
+		return get_rate2 ? get_rate2() : 0;
 	case 2:
 		return get_rate3 ? get_rate3() : 0;
 	case 3:
@@ -139,7 +140,7 @@ unsigned long imx_get_uartclk(void)
 	return parent_rate / (prediv * podf);
 }
 
-static unsigned long imx_get_ahbclk(void)
+unsigned long imx_get_ahbclk(void)
 {
 	u32 reg, div;
 
