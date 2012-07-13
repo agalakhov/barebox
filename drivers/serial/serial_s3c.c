@@ -47,11 +47,6 @@
 # define UINTM 0x38		/* interrupt mask register */
 #endif
 
-#ifndef S3C_UART_CLKSEL
-/* Use pclk */
-# define S3C_UART_CLKSEL 0
-#endif
-
 struct s3c_uart {
 	void __iomem *regs;
 	struct console_device cdev;
@@ -108,7 +103,7 @@ static int s3c_serial_init_port(struct console_device *cdev)
 
 	/* tx=level,rx=edge,disable timeout int.,enable rx error int.,
 	 * normal, interrupt or polling, no pre-divider */
-	writew(0x0245 | ((S3C_UART_CLKSEL) << 10), base + UCON);
+	writew(0x0245 | ((CONFIG_DRIVER_SERIAL_S3C_CLK) << 10), base + UCON);
 
 #ifdef S3C_UART_HAS_UINTM
 	/* 'interrupt or polling mode' for both directions */

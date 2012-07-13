@@ -85,6 +85,18 @@ config DRIVER_SERIAL_S3C
 	help
 	  Say Y here if you want to use the CONS on a Samsung S3C CPU
 
+config DRIVER_SERIAL_S3C_CLK
+	int
+	prompt "input clock reference"
+	depends on DRIVER_SERIAL_S3C
+	default 0 if ARCH_S3C24xx
+	default 3 if ARCH_S5PCxx
+	help
+	  Select one of up to four available clock sources for the UART:
+	   0+1: PCLK, 2: UCLK0, 3: UCLK1
+	  Note: not all values are possible on all Samsung SoCs. Read the
+	  manual if unsure.
+
 config DRIVER_SERIAL_S3C_AUTOSYNC
 	bool "Enable auto flow"
 	depends on DRIVER_SERIAL_S3C
