@@ -90,7 +90,7 @@ config DRIVER_SERIAL_S3C_CLK
 	prompt "input clock reference"
 	depends on DRIVER_SERIAL_S3C
 	default 0 if ARCH_S3C24xx
-	default 3 if ARCH_S5PCxx
+	default 3 if ARCH_S3C64xx || ARCH_S5PCxx
 	help
 	  Select one of up to four available clock sources for the UART:
 	   0+1: PCLK, 2: UCLK0, 3: UCLK1
