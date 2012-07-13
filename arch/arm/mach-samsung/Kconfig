@@ -20,6 +20,9 @@ config ARCH_BAREBOX_MAX_BARE_INIT_SIZE
 	hex
 	default 0x1ff0 if ARCH_S5PCxx
 
+config SAMSUNG_IMPROVED_UART
+	bool
+
 if ARCH_S3C24xx
 
 config CPU_S3C2410
@@ -89,9 +92,11 @@ endif
 if ARCH_S5PCxx
 
 config CPU_S5PC110
+	select SAMSUNG_IMPROVED_UART
 	bool
 
 config CPU_S5PV210
+	select SAMSUNG_IMPROVED_UART
 	bool
 
 choice
