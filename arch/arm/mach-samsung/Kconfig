@@ -19,6 +19,8 @@ config BOARDINFO
 config ARCH_BAREBOX_MAX_BARE_INIT_SIZE
 	hex
 	default 0x1ff0 if ARCH_S5PCxx
+# TODO
+	default 0x2000 if ARCH_S3C64xx
 
 config SAMSUNG_IMPROVED_UART
 	bool
@@ -89,6 +91,24 @@ endmenu
 
 endif
 
+if ARCH_S3C64xx
+
+config CPU_S3C6410
+	select SAMSUNG_IMPROVED_UART
+	bool
+
+choice
+
+	prompt "S3C64xx Board Type"
+
+endchoice
+
+menu "Board specific settings       "
+
+endmenu
+
+endif
+
 if ARCH_S5PCxx
 
 config CPU_S5PC110
@@ -113,7 +133,6 @@ config MACH_TINY210
 endchoice
 
 endif
-
 
 menu "S3C Features              "
 
