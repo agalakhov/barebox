@@ -7,6 +7,7 @@ config ARCH_TEXT_BASE
 	hex
 	default 0x31fc0000 if MACH_MINI2440
 	default 0x57fc0000 if MACH_MINI6410
+	default 0x57fc0000 if MACH_TINY6410
 	default 0x31fc0000 if MACH_A9M2440
 	default 0x31fc0000 if MACH_A9M2410
 	default 0x23e00000 if MACH_TINY210
@@ -14,6 +15,7 @@ config ARCH_TEXT_BASE
 config BOARDINFO
 	default "Mini 2440"    if MACH_MINI2440
 	default "Mini 6410"    if MACH_MINI6410
+	default "Tiny 6410"    if MACH_TINY6410
 	default "Digi A9M2440" if MACH_A9M2440
 	default "Digi A9M2410" if MACH_A9M2410
 	default "Tiny 210"     if MACH_TINY210
@@ -111,11 +113,19 @@ config MACH_MINI6410
 	  Say Y here if you are using FriendlyARM Mini6410 board equipped
 	  with a Samsung S3C6410 Processor
 
+config MACH_TINY6410
+	bool "Tiny 6410"
+	select CPU_S3C6410
+	help
+	  Say Y here if you are using FriendlyARM Tiny6410 CPU card equipped
+	  with a Samsung S3C6410 Processor
+
 endchoice
 
 menu "Board specific settings       "
 
 source arch/arm/boards/friendlyarm-mini6410/Kconfig
+source arch/arm/boards/friendlyarm-tiny6410/Kconfig
 
 endmenu
 
