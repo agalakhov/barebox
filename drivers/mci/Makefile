@@ -1,6 +1,8 @@
 obj-$(CONFIG_MCI)	+= mci-core.o
 obj-$(CONFIG_MCI_MXS) += mxs.o
 obj-$(CONFIG_MCI_S3C) += s3c.o
+obj-$(CONFIG_MCI_ESDHC) += esdhc-core.o
+obj-$(CONFIG_MCI_S3C64XX) += s3c64xx.o
 obj-$(CONFIG_MCI_IMX) += imx.o
 obj-$(CONFIG_MCI_IMX_ESDHC) += imx-esdhc.o
 obj-$(CONFIG_MCI_OMAP_HSMMC) += omap_hsmmc.o
@@ -8,3 +10,5 @@ obj-$(CONFIG_I2C_TWL6030) += twl6030.o
 obj-$(CONFIG_MCI_PXA) += pxamci.o
 obj-$(CONFIG_MCI_ATMEL) += atmel_mci.o
 obj-$(CONFIG_MCI_SPI) += mci_spi.o
+obj-$(CONFIG_MCI_SAMSUNG) += uboot_sdhci.o
+obj-$(CONFIG_MCI_SAMSUNG_ESDHC) += uboot_samsung_sdhci.o
