@@ -41,6 +41,8 @@ struct s3c_mci_platform_data {
 	/* function to detect the presence of a SD card in the socket */
 	unsigned gpio_detect;
 	unsigned detect_invert;
+	unsigned clk_src:2; /* 0/1 HCLK, 2 EPLL, 3 external */
+	unsigned pin_strength:2;
 };
 
 #endif /* __MACH_MMC_H_ */
