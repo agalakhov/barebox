@@ -31,6 +31,9 @@ config MCI_WRITE
 
 comment "--- MCI host drivers ---"
 
+config MCI_ESDHC
+	bool
+
 config MCI_MXS
 	bool "i.MX23/i.MX28"
 	depends on ARCH_MXS
@@ -44,6 +47,25 @@ config MCI_S3C
 	help
 	  Enable this entry to add support to read and write SD cards on a
 	  Samsung S3C24xx based system.
+
+config MCI_S3C64XX
+	bool "S3C64xx"
+	depends on ARCH_S3C64xx
+	select MCI_ESDHC
+	help
+	  Enable this entry to add support to read and write SD cards on a
+	  Samsung S3C64xx based system.
+
+config MCI_SAMSUNG_ESDHC
+	bool
+
+config MCI_SAMSUNG
+	bool "Samsung"
+	depends on ARCH_S3C64xx
+	select MCI_SAMSUNG_ESDHC
+	help
+	  Enable this entry to add support to read and write SD cards on a
+	  Samsung S3C64xx based system.
 
 config MCI_IMX
 	bool "i.MX"
