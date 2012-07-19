@@ -17,6 +17,7 @@
 #include <init.h>
 #include <clock.h>
 #include <io.h>
+#include <asm-generic/div64.h>
 #include <mach/s3c-iomap.h>
 #include <mach/s3c-generic.h>
 #include <mach/s3c-clocks.h>
@@ -26,34 +27,32 @@
  *
  *  ref_in ----o-----------\
  *             |            MUX -o------------\
- *             |           /     |             MUX --- DIV_APLL ------- ARMCLK -> CPU core
- *             o--- APLL --      |            / |
- *             |                 o--/2 -------  |
- *             |                 |              |<-MISC_CON_SYN667
+ *             |           / ^   |             MUX --- DIV_APLL ------- ARMCLK -> CPU core
+ *             o--- APLL --  |   |            / |
+ *             |             |   o--/2 -------  |
+ *             |       APLL_SEL  |              |<-MISC_CON_SYN667
  *             |                 \              |
  *             o-----------\      MUX-o-------\ |
  *             |            MUX--/ ^  |        MUX --- DIV -o--------- HCLKx2 -> SDRAM (max. 266 MHz)
- *             |           /       |  |       /             |
- *             o---- MPLL--        |  o--/5 --              o-- DIV -- HCLK -> AXI / AHB (max. 133 MHz)
- *             |                   |                        |
- *             |             OTHERS_CLK_SELECT              o-- DIV -- PCLK -> APB (max. 66 MHz)
+ *             |           / ^     |  |       /             |
+ *             o---- MPLL--  |     |  o--/5 --              o-- DIV -- HCLK -> AXI / AHB (max. 133 MHz)
+ *             |             |     |                        |
+ *             |       MPLL_SEL  OTHERS_CLK_SELECT          o-- DIV -- PCLK -> APB (max. 66 MHz)
  *             |
  *             o-----------\
  *             |            MUX---o----- MUX ----- DIV --- UART
- *             |           /
- *             o---- EPLL--
- *
- *          MMCx_SEL
- *             v
- * EPLLout --0-\
- * MPLLout --1--\-----SCLK_MMCx----DIV_MMCx------>HSMMCx
- * EPLLin  --2--/       on/off     / 1..16
- * 27 MHz  --3-/
+ *             |           / ^    |
+ *             o---- EPLL--  |    +------- more hardware
+ *                           |
+ *                     EPLL_SEL
  */
 
 static unsigned s3c_get_apllclk(void)
 {
 	uint32_t m, p, s, reg_val;
+
+	if (!(readl(S3C_CLK_SRC) & S3C_CLK_SRC_FOUTAPLL))
+		return S3C64XX_CLOCK_REFERENCE;
 
 	reg_val = readl(S3C_APLLCON);
 	m = S3C_APLLCON_GET_MDIV(reg_val);
@@ -63,17 +62,12 @@ static unsigned s3c_get_apllclk(void)
 	return (S3C64XX_CLOCK_REFERENCE * m) / (p << s);
 }
 
-static unsigned s3c_get_apll_out(void)
-{
-	if (readl(S3C_CLK_SRC) & S3C_CLK_SRC_FOUTAPLL)
-		return s3c_get_apllclk();
-
-	return S3C64XX_CLOCK_REFERENCE;
-}
-
 uint32_t s3c_get_mpllclk(void)
 {
 	uint32_t m, p, s, reg_val;
+
+	if (!(readl(S3C_CLK_SRC) & S3C_CLK_SRC_FOUTMPLL))
+		return S3C64XX_CLOCK_REFERENCE;
 
 	reg_val = readl(S3C_MPLLCON);
 	m = S3C_MPLLCON_GET_MDIV(reg_val);
@@ -85,28 +79,31 @@ uint32_t s3c_get_mpllclk(void)
 
 unsigned s3c_get_epllclk(void)
 {
-	return 0;	 /* TODO */
-}
+	u32 m, p, s, k, reg0_val, reg1_val;
+	u64 tmp;
 
-static unsigned s3c_get_epllinputclk(void)
-{
-	return 0;	 /* TODO ~24 MHz */
-}
+	if (!(readl(S3C_CLK_SRC) & S3C_CLK_SRC_FOUTEPLL))
+		return S3C64XX_CLOCK_REFERENCE;
 
+	reg0_val = readl(S3C_EPLLCON0);
+	reg1_val = readl(S3C_EPLLCON1);
+	m = S3C_EPLLCON0_GET_MDIV(reg0_val);
+	p = S3C_EPLLCON0_GET_PDIV(reg0_val);
+	s = S3C_EPLLCON0_GET_SDIV(reg0_val);
+	k = S3C_EPLLCON1_GET_KDIV(reg1_val);
 
-static unsigned s3c_get_mpll_out(void)
-{
-	if (readl(S3C_CLK_SRC) & S3C_CLK_SRC_FOUTMPLL)
-		return s3c_get_mpllclk();
+	tmp = S3C64XX_CLOCK_REFERENCE;
+	tmp *= (m << 16) + k;
+	do_div(tmp, (p << s));
 
-	return S3C64XX_CLOCK_REFERENCE;
+	return (unsigned)tmp >> 16;
 }
 
 uint32_t s3c_get_fclk(void)
 {
 	unsigned clk;
 
-	clk = s3c_get_apll_out();
+	clk = s3c_get_apllclk();
 	if (readl(S3C_MISC_CON) & S3C_MISC_CON_SYN667)
 		clk /= 2;
 
@@ -118,9 +115,9 @@ static unsigned s3c_get_hclk_in(void)
 	unsigned clk;
 
 	if (readl(S3C_OTHERS) & S3C_OTHERS_CLK_SELECT)
-		clk = s3c_get_apll_out();
+		clk = s3c_get_apllclk();
 	else
-		clk = s3c_get_mpll_out();
+		clk = s3c_get_mpllclk();
 
 	if (readl(S3C_MISC_CON) & S3C_MISC_CON_SYN667)
 		clk /= 5;
@@ -218,24 +215,58 @@ unsigned s3c_get_uart_clk(unsigned source)
  * 27 MHz  --3-/
  *
  * The datasheet is not very precise here, so the schematic shown above was
- * made by experiment
- */
-/*
- * MMCx_SEL from register "CLK_SRC"
- * SCLK_MMCx from register "SCLK_GATE"
- * DIV_MMCx from register "CLK_DIV1"
- *
- * HSMMCx is used when the SELBASECLK bits in the ESDHC's "CONTROL2"
- * register are set to binary "10"
+ * made by checking various bits in the SYSCON.
  */
 unsigned s3c_get_hsmmc_clk(int id)
 {
-	return 0; /* TODO */
+	u32 sel, div, sclk = readl(S3C_SCLK_GATE);
+	unsigned bclk;
+
+	if (!(sclk & S3C_SCLK_GATE_MMC(id)))
+		return 0; /* disabled */
+
+	sel = S3C_CLK_SRC_GET_MMC_SEL(id, readl(S3C_CLK_SRC));
+	switch (sel) {
+	case 0:
+		bclk = s3c_get_epllclk();
+		break;
+	case 1:
+		bclk = s3c_get_mpllclk();
+		break;
+	case 2:
+		bclk = S3C64XX_CLOCK_REFERENCE;
+		break;
+	case 3:
+		bclk = 27000000;
+		break;
+	}
+
+	div = S3C_CLK_DIV0_GET_MMC(id, readl(S3C_CLK_DIV0)) + 1;
+
+	return bclk / div;
 }
 
 void s3c_set_hsmmc_clk(int id, int src, unsigned div)
 {
-	/* id: HSMMCx. src: MMCx_SEL, div: DIV_MMCx */
+	u32 reg;
+
+	if (!div)
+		div = 1;
+
+	writel(readl(S3C_SCLK_GATE) & ~S3C_SCLK_GATE_MMC(id), S3C_SCLK_GATE);
+
+	/* select the new clock source */
+	reg = readl(S3C_CLK_SRC) & ~S3C_CLK_SRC_SET_MMC_SEL(id, ~0);
+	reg |= S3C_CLK_SRC_SET_MMC_SEL(id, src);
+	writel(reg, S3C_CLK_SRC);
+
+	/* select the new pre-divider */
+	reg = readl(S3C_CLK_DIV0) & ~ S3C_CLK_DIV0_SET_MMC(id, ~0);
+	reg |= S3C_CLK_DIV0_SET_MMC(id, div - 1);
+	writel(reg, S3C_CLK_DIV0);
+
+	/* calling this function implies enabling of the clock */
+	writel(readl(S3C_SCLK_GATE) | S3C_SCLK_GATE_MMC(id), S3C_SCLK_GATE);
 }
 
 int s3c64xx_dump_clocks(void)
@@ -243,6 +274,7 @@ int s3c64xx_dump_clocks(void)
 	printf("refclk:  %7d kHz\n", S3C64XX_CLOCK_REFERENCE / 1000);
 	printf("apll:    %7d kHz\n", s3c_get_apllclk() / 1000);
 	printf("mpll:    %7d kHz\n", s3c_get_mpllclk() / 1000);
+	printf("epll:    %7d kHz\n", s3c_get_epllclk() / 1000);
 	printf("CPU:     %7d kHz\n", s3c_get_fclk() / 1000);
 	printf("hclkx2:  %7d kHz\n", s3c_get_hclkx2() / 1000);
 	printf("hclk:    %7d kHz\n", s3c_get_hclk() / 1000);
