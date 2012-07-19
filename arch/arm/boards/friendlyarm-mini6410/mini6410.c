@@ -54,7 +54,7 @@ static struct esdhc_platform_data mini6410_esdhc0 = {
 
 	.cd_type = ESDHC_CD_CONTROLLER,
 
-	.clk_src = 0, /* use HCLK as the main clock for the SDHC unit */
+	.clk_src = 2, /* use HSMMCx as the main clock card's clock */
 
 	.wp_type = ESDHC_WP_GPIO,
 	.wp_gpio = GPL13,
