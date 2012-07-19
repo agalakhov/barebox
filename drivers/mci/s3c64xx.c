@@ -110,26 +110,11 @@ unsigned esdhcp_get_base_clk(struct esdhc_mci *this)
  */
 static int esdhc_s3c64xx_setup_input_clock(struct esdhc_mci *h, int id)
 {
-	u32 pre, src, hgate, sgate;
+	struct esdhc_platform_data *pd = h->pdata;
 
-	pre = readl(S3C_CLOCK_POWER_BASE + CLK_DIV1);
-	hgate = readl(S3C_CLOCK_POWER_BASE + HCLK_GATE);
-	sgate = readl(S3C_CLOCK_POWER_BASE + SCLK_GATE);
-	src =  readl(S3C_CLOCK_POWER_BASE + CLK_SRC) & ~(0x3 << (18 + 2 * id));
-
-	/* switch on the HCLK/internal bus side */
-	hgate |= (1 << (17 + id));
-	/* switch on the SCLK WTF? */
-	sgate |= (1 << (24 + id));
-	/* select divider 1 */
-	pre &= ~(0xf << (4 * id));
-	/* source enable WTF? */
-	src |= (0x3 << (18 + 2 * id));
-
-	writel(src, S3C_CLOCK_POWER_BASE + CLK_SRC);
-	writel(pre, S3C_CLOCK_POWER_BASE + CLK_DIV1);
-	writel(sgate, S3C_CLOCK_POWER_BASE + SCLK_GATE);
-	writel(hgate, S3C_CLOCK_POWER_BASE + HCLK_GATE);
+	if (pd->clk_src == 2)	/* HSMMCx? */
+		/* use the MPLL output as our source for the highest available clock */
+		s3c_set_hsmmc_clk(id, 1, 1);
 
 	return 0;
 }
@@ -155,7 +140,6 @@ static int esdhc_s3c64xx_probe(struct device_d *dev)
 	printf("New esdhc's hw base is at %p\n", this->base);
 
 	/* enable the defined clock source */
-
 	esdhc_s3c64xx_setup_input_clock(this, dev->id);
 
 	/* feed forward the platform specific values */
