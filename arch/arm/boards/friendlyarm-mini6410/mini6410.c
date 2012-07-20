@@ -16,11 +16,13 @@
 #include <init.h>
 #include <dm9000.h>
 #include <gpio.h>
+#include <mci/esdhc.h>
 #include <generated/mach-types.h>
 #include <asm/armlinux.h>
 #include <mach/s3c-iomap.h>
 #include <mach/devices-s3c64xx.h>
 #include <mach/s3c-generic.h>
+#include <mach/s3c-esdhc.h>
 
 /*
  * dm9000 network controller onboard
@@ -31,6 +33,32 @@
  */
 static struct dm9000_platform_data dm9000_data = {
 	.srom = 0,	/* no serial ROM for the ethernet address */
+};
+
+static struct s3c_sdhc_platform_data mini6410_esdhc0 = {
+	/* socket is connected to 3.3 V */
+	.esdhc_pd.voltages = MMC_VDD_32_33 | MMC_VDD_33_34,
+	/* only four data lines are connected */
+	.esdhc_pd.host_caps = MMC_MODE_4BIT | MMC_MODE_HS | MMC_MODE_HS_52MHz,
+	.esdhc_pd.cd_type = ESDHC_CD_CONTROLLER,
+	.esdhc_pd.wp_type = ESDHC_WP_GPIO,
+	.esdhc_pd.wp_gpio = GPL13,
+	.esdhc_pd.f_max = 52000000,
+
+	.clk_src = 2, /* use HSMMCx as the main clock card's clock */
+	.pin_strength = 0, /* [2mA], 4mA, 7mA or 9mA below 25 MHz */
+	.pin_strength25 = 3, /* 2mA, 4mA, 7mA or [9mA] above 25 MHz */
+
+/* don't ask me, how these delay settings where calculated. Just copy & paste ;) */
+	.rx_delay_en = 0 /*1*/, /* use the delay setting for RX */
+	.rx_delay = 2 /*3*/, /* basic delay + 2ns */
+	.rx_delay_en25 = 0, /* TODO */
+	.rx_delay25 = 0, /* TODO */
+
+	.tx_delay_en = 0, /* ignore the delay settings for TX (copy & paste) */
+	.tx_delay = 2 /*0*/,
+	.tx_delay_en25 = 0, /* TODO */
+	.tx_delay25 = 0, /* TODO */
 };
 
 static const unsigned pin_usage[] = {
@@ -90,7 +118,7 @@ static const unsigned pin_usage[] = {
 	GPF12_GPIO | GPIO_IN | ENABLE_PU,
 	GPF13_GPIO | GPIO_OUT | GPIO_VAL(0), /* USB power off */
 #if 0
-	GPF14_CLKOUT, /* for testing purposes, but very noisy */
+	GPF14_CLKOUT, /* for testing purposes. Very handy, but very noisy */
 #else
 	GPF14_GPIO | GPIO_OUT | GPIO_VAL(0), /* Buzzer off */
 #endif
@@ -281,6 +309,10 @@ static int mini6410_devices_init(void)
 	mini6410_setup_dm9000_cs();
 	add_dm9000_device(0, S3C_CS1_BASE + 0x300, S3C_CS1_BASE + 0x304,
 				IORESOURCE_MEM_16BIT, &dm9000_data);
+
+	/* 99 MHz matches better with most available SD cards */
+	s3c_set_epllclk(33, 1, 2, 0);
+	s3c64xx_add_mci0(&mini6410_esdhc0);
 
 	armlinux_set_bootparams((void *)S3C_SDRAM_BASE + 0x100);
 	armlinux_set_architecture(MACH_TYPE_MINI6410);
