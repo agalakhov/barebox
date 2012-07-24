@@ -31,6 +31,8 @@
 /* Note: Offsets are for little endian access */
 #define ULCON 0x00		/* line control */
 #define UCON 0x04		/* UART control */
+# define UCON_SET_CLK_SRC(x) (((x) & 0x03) << 10)
+# define UCON_GET_CLK_SRC(x) (((x) >> 10) & 0x03)
 #define UFCON 0x08		/* FIFO control */
 #define UMCON 0x0c		/* modem control */
 #define UTRSTAT 0x10		/* Rx/Tx status */
@@ -40,12 +42,8 @@
 #define UTXH 0x20		/* transmitt */
 #define URXH 0x24		/* receive */
 #define UBRDIV 0x28		/* baudrate generator */
-#ifdef S3C_UART_HAS_UBRDIVSLOT
-# define UBRDIVSLOT 0x2c	/* baudrate slot generator */
-#endif
-#ifdef S3C_UART_HAS_UINTM
-# define UINTM 0x38		/* interrupt mask register */
-#endif
+#define UBRDIVSLOT 0x2c		/* baudrate slot generator */
+#define UINTM 0x38		/* interrupt mask register */
 
 #ifndef S3C_UART_CLKSEL
 /* Use pclk */
@@ -62,11 +60,9 @@ struct s3c_uart {
 static unsigned s3c_get_arch_uart_input_clock(void __iomem *base)
 {
 	unsigned reg = readw(base + UCON);
-	reg = (reg >> 10) & 0x3;
-	return s3c_get_uart_clk(reg);
+	return s3c_get_uart_clk(UCON_GET_CLK_SRC(reg));
 }
 
-#ifdef S3C_UART_HAS_UBRDIVSLOT
 /*
  * This table takes the fractional value of the baud divisor and gives
  * the recommended setting for the UDIVSLOT register. Refer the datasheet
@@ -76,7 +72,6 @@ static const uint16_t udivslot_table[] __maybe_unused = {
 	0x0000, 0x0080, 0x0808, 0x0888, 0x2222, 0x4924, 0x4A52, 0x54AA,
 	0x5555, 0xD555, 0xD5D5, 0xDDD5, 0xDDDD, 0xDFDD, 0xDFDF, 0xFFDF,
 };
-#endif
 
 static int s3c_serial_setbaudrate(struct console_device *cdev, int baudrate)
 {
@@ -108,18 +103,18 @@ static int s3c_serial_init_port(struct console_device *cdev)
 
 	/* tx=level,rx=edge,disable timeout int.,enable rx error int.,
 	 * normal, interrupt or polling, no pre-divider */
-	writew(0x0245 | ((S3C_UART_CLKSEL) << 10), base + UCON);
+	writew(0x0245 | UCON_SET_CLK_SRC(S3C_UART_CLKSEL),
+						base + UCON);
 
 #ifdef S3C_UART_HAS_UINTM
 	/* 'interrupt or polling mode' for both directions */
 	writeb(0xf, base + UINTM);
 #endif
 
-#ifdef CONFIG_DRIVER_SERIAL_S3C_AUTOSYNC
-	writeb(0x10, base + UMCON); /* enable auto flow control */
-#else
-	writeb(0x01, base + UMCON); /* RTS up */
-#endif
+	if (IS_ENABLED(CONFIG_DRIVER_SERIAL_S3C_AUTOSYNC))
+		writeb(0x10, base + UMCON); /* enable auto flow control */
+	else
+		writeb(0x01, base + UMCON); /* RTS up */
 
 	return 0;
 }
