@@ -502,7 +502,7 @@ static struct driver_d esdhc_s3c64xx_driver = {
 
 static int esdhc_s3c64xx_init_driver(void)
 {
-        register_driver(&esdhc_s3c64xx_driver);
+        platform_driver_register(&esdhc_s3c64xx_driver);
         return 0;
 }
 
