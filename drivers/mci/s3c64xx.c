@@ -484,7 +484,7 @@ static int esdhc_s3c64xx_probe(struct device_d *dev)
 	this->mci.voltages = pd->esdhc_pd.voltages;
 	this->mci.host_caps = pd->esdhc_pd.host_caps;
 
-	this->mci.f_min = pd->esdhc_pd.f_min == 0 ? S3C64XX_CLOCK_REFERENCE / 256 : pd->esdhc_pd.f_min;
+	this->mci.f_min = pd->esdhc_pd.f_min == 0 ? S5PCXX_CLOCK_REFERENCE / 256 : pd->esdhc_pd.f_min;
 	this->mci.f_max = pd->esdhc_pd.f_max == 0 ? 52000000 : pd->esdhc_pd.f_max;
 
 	pr_debug("%s: using f_min = %u Hz, f_max = %u Hz\n", __func__, this->mci.f_min, this->mci.f_max);

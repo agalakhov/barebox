@@ -47,7 +47,7 @@ config MCI_S3C
 
 config MCI_S3C64XX
 	bool "S3C64xx"
-	depends on ARCH_S3C64xx
+	depends on ARCH_S3C64xx || ARCH_S5PCxx
 	help
 	  Enable this entry to add support to read and write SD cards on a
 	  Samsung S3C64xx based system.
