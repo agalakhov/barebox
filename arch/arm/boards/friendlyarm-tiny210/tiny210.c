@@ -137,7 +137,7 @@ static int tiny210_devices_init(void)
 			0x100, IORESOURCE_MEM, &tiny210_esdhc0);
 
 	armlinux_set_bootparams((void*)S3C_SDRAM_BASE + 0x100);
-	armlinux_set_architecture(MACH_TYPE_MINI210);
+	armlinux_set_architecture(MACH_TYPE_TINY210);
 
 	return 0;
 }
