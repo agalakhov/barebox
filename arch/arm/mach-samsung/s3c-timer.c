@@ -119,4 +119,4 @@ static int s3c_clk_src_init(void)
 
 	return 0;
 }
-core_initcall(s3c_clk_src_init);
+postcore_initcall(s3c_clk_src_init);

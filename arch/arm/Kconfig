@@ -158,6 +158,8 @@ config ARCH_S5PCxx
 	select ARCH_SAMSUNG
 	select CPU_V7
 	select GENERIC_GPIO
+	select COMMON_CLK
+	select CLKDEV_LOOKUP
 
 config ARCH_S3C64xx
 	bool "Samsung S3C64xx"
